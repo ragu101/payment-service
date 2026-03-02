@@ -134,6 +134,12 @@ jobs:
         env:
           SDLC_API_URL: ${{ vars.SDLC_API_URL }}   # e.g. https://sdlc.your-domain.com
         run: |
+          # Skip gracefully if SDLC_API_URL is not configured
+          if [ -z "$SDLC_API_URL" ]; then
+            echo "ℹ️  SDLC_API_URL not set — skipping evidence upload (non-blocking)."
+            exit 0
+          fi
+
           # Derive version from branch: release/v2.0.0 → v2.0.0
           VERSION="${GITHUB_REF#refs/heads/release/}"
           ORG="${{ github.repository_owner }}"
@@ -170,9 +176,9 @@ jobs:
           HTTP_STATUS=$(curl -s -o /tmp/sdlc_response.json -w "%{http_code}" \
             -X POST "$SDLC_API_URL/api/evidence/upload" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
+            -d "$PAYLOAD" || echo "000")
 
-          cat /tmp/sdlc_response.json
+          cat /tmp/sdlc_response.json 2>/dev/null || true
 
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "⚠️  SDLC upload returned HTTP $HTTP_STATUS — non-blocking, CI still passes."
